@@ -5,11 +5,6 @@ const path = require('path');
 const app = express();
 const wss = new ws.Server({ noServer: true })
 
-// message = {
-//     action: ['play', 'pause', 'stop', 'new'],
-//     room: 'uuid'
-// }
-
 // const room = {
 //     id: 'uuid',
 //     queue: ['videos'],
@@ -17,12 +12,18 @@ const wss = new ws.Server({ noServer: true })
 // }
 
 const queue = [
-  'https://www.youtube.com/embed/OCIg-s7geG8?start=0',
-  'https://www.youtube.com/embed/tueAcSiiqYA?start=1',
-  'https://www.youtube.com/embed/V5uycGosYq4?start=1'
+  'OCIg-s7geG8',
+  'tueAcSiiqYA',
+  'V5uycGosYq4'
 ]
 
-let currentVideo = 'https://www.youtube.com/embed/V5uycGosYq4?start=1'
+let currentVideo = 'V5uycGosYq4'
+
+function updateQueue() {
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify({action: 'update-queue', queue: queue}))
+  })
+}
 
 wss.on('connection', (socket) => {
   console.log('client connected')
@@ -31,7 +32,8 @@ wss.on('connection', (socket) => {
       let command = JSON.parse(message);
       switch(command.action) {
         case 'get-video':
-          socket.send(JSON.stringify({action: 'set-video', video: currentVideo, videoId: new URL(currentVideo).pathname.split('/').pop()}))
+          socket.send(JSON.stringify({action: 'set-video', videoId: currentVideo}))
+          updateQueue()
           break;
         case 'play':
           wss.clients.forEach((client) => {
@@ -46,21 +48,36 @@ wss.on('connection', (socket) => {
         case 'next':
           currentVideo = queue.shift();
           wss.clients.forEach((client) => {
-            client.send(JSON.stringify({action: 'set-video', video: currentVideo, videoId: new URL(currentVideo).pathname.split('/').pop()}))
+            client.send(JSON.stringify({action: 'set-video', videoId: currentVideo}))
           })
+          updateQueue()
           break
+        case 'add-video':
+          let url = command.url
+          switch (new URL(url).pathname.split('/')[1]) {
+            case 'embed':
+              queue.push(new URL(url).pathname.split('/').pop())
+              break;
+            case 'watch':
+              queue.push(new URL(url).search.split('=')[1])
+              break
+          }
+          socket.send(JSON.stringify({action: 'alert', success: true, message: 'Video was added successfully'}))
+          updateQueue()
+          break
+        case 'remove-video':
+          let index = queue.indexOf(command.videoId);
+          if(index > -1) {
+            queue.splice(index, 1)
+          }
+          updateQueue()
+          break;
         default:
           console.log('i dont know what you want me to do???????')
       }
     } catch (err) {
       console.log(err);
     }
-
-    
-    
-    // wss.clients.forEach((client) => {
-    //   client.send(message)
-    // })
   })
 })
 
@@ -70,8 +87,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'))
 })
 
-const server = app.listen(3333, '0.0.0.0', () => {
-  console.log('Server listening on port 3333')
+const server = app.listen(3000, '0.0.0.0', () => {
+  console.log('Server listening on port 3000')
 })
 
 server.on('upgrade', (request, socket, head) => {

@@ -1,7 +1,6 @@
 {
   "name": "youtube-with-friends",
   "version": "1.0.0",
-  "description": "",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -14,5 +13,14 @@
     "express": "^4.17.1",
     "nodemon": "^2.0.7",
     "ws": "^7.4.6"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/egm42/youtube-with-friends.git"
+  },
+  "bugs": {
+    "url": "https://github.com/egm42/youtube-with-friends/issues"
+  },
+  "homepage": "https://github.com/egm42/youtube-with-friends#readme",
+  "description": ""
 }

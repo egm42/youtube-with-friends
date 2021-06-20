@@ -1,10 +1,11 @@
 import React from 'react'
 import './App.css';
-import { Button, Col, Container, Row } from 'react-bootstrap';
+import { Button, Card, Col, Container, Form, Row } from 'react-bootstrap';
 import { w3cwebsocket as W3CWebSocket } from "websocket";
 import YouTube from 'react-youtube';
 
-const client = new W3CWebSocket("ws://localhost:3333");
+//TODO: Fix websocket address
+const client = new W3CWebSocket("ws://localhost:3000/");
 
 class App extends React.Component {
   constructor(props) {
@@ -13,12 +14,17 @@ class App extends React.Component {
     this.togglePlay = this.togglePlay.bind(this);
     this.nextVideo = this.nextVideo.bind(this);
     this._onReady = this._onReady.bind(this);
+    this.handleChange = this.handleChange.bind(this);
+    this.addURL = this.addURL.bind(this);
+    this.removeVideo = this.removeVideo.bind(this);
+    this.showQueue = this.showQueue.bind(this);
     this.state = {
       play: false,
       userid: '0000-0000-0000',
       video: '',
       videoId: '',
-      player: null
+      player: null,
+      queue: []
     }
   }
 
@@ -29,12 +35,10 @@ class App extends React.Component {
     }
     client.onmessage = (message) => {
       let command = JSON.parse(message.data);
+      let newState = this.state;
       switch(command.action) {
         case 'set-video':
-          let newState = this.state;
-          newState.video = command.video;
           newState.videoId = command.videoId;
-          this.setState(newState);
           break;
         case 'play-video':
           this.state.player.playVideo()
@@ -44,9 +48,16 @@ class App extends React.Component {
           this.state.player.pauseVideo();
           console.log('pause video')
           break;
+        case 'alert':
+          console.log(command.message)
+          break;
+        case 'update-queue':
+          newState.queue = command.queue
+          break;
         default:
           console.log('i dont know what you want me to do???????')
       }
+      this.setState(newState);
     }
   }
 
@@ -63,9 +74,11 @@ class App extends React.Component {
     let newState = this.state;
     newState.play = !newState.play;
     this.setState(newState);
+    let data = this.state.player.getVideoData()
+    console.log(data)
 
     let message = {
-      action: !newState.play ? 'play' : 'pause',
+      action: newState.play ? 'play' : 'pause',
       userid: this.state.userid
     }
 
@@ -85,8 +98,50 @@ class App extends React.Component {
     let newState = this.state;
     newState.player = event.target;
     this.setState(newState);
-    console.log(event.target)
-    console.log(event.target)
+  }
+
+  handleChange(event) {
+    let newState = this.state;
+    newState[event.target.name] = event.target.value
+    this.setState(newState);
+  }
+
+  addURL() {
+    let message = {
+      action: 'add-video',
+      url: this.state.newURL,
+      userid: this.state.userid
+    }
+
+    client.send(JSON.stringify(message))
+
+    let newState = this.state;
+    newState.newURL = ''
+    this.setState(newState);
+
+  }
+
+  removeVideo(videoId) {
+    let message = {
+      action: 'remove-video',
+      videoId: videoId,
+      userid: this.state.userid
+    }
+
+    client.send(JSON.stringify(message))
+  }
+
+  showQueue() {
+    return (
+      <div>
+        {this.state.queue.map((vid, index) => (
+          <Card key={index} bg='dark' text='light' style={{margin: 10, width: 250}}>
+            <Card.Title style={{padding: 10}}>{vid}<Button className='float-right' variant='outline-light' size='sm' onClick={() => this.removeVideo(vid)}>X</Button></Card.Title>
+            <Card.Body>Put video things here</Card.Body>
+          </Card>
+        ))}
+      </div>
+    )
   }
 
   render() {
@@ -100,11 +155,24 @@ class App extends React.Component {
           </Container>
           <Button onClick={this.togglePlay}>{!this.state.play?'play':'pause'}</Button>
           <Button onClick={this.nextVideo}>next</Button>
+          <Container>
+            <Form>
+              <Form.Row>
+                <Col>
+                <Form.Label>YouTube URL</Form.Label>
+                <Form.Control type='text' value={this.state.newURL} placeholder='Paste YouTube URL' name='newURL' onChange={this.handleChange}></Form.Control>
+                <Button onClick={this.addURL}>Submit</Button>
+                </Col>
+              </Form.Row>
+            </Form>
+          </Container>
+          
         </Col>
         <Col>
-          <p>this is where queue goes</p>
+          {this.showQueue()}
         </Col>
       </Row>
+
     
       </div>
     );
